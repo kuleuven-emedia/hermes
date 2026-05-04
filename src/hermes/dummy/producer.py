@@ -39,12 +39,9 @@ from hermes.base.nodes.producer import Producer
 class DummyProducer(Producer):
     """A Node showcasing the Producer behavior, generating new data relayed to the Broker for consumers."""
 
-    @classmethod
-    def _log_source_tag(cls) -> str:
-        return "dummy-producer"
-
     def __init__(
         self,
+        topic: str,
         host_ip: str,
         logging_spec: LoggingSpec,
         sampling_rate_hz: int = 1,
@@ -58,6 +55,7 @@ class DummyProducer(Producer):
         """Constructor of the DummyProducer Node.
 
         Args:
+            topic (str): Topic to which the producer will publish messages.
             host_ip (str): IP address of the local master Broker.
             logging_spec (LoggingSpec): Specification of what and how to store.
             sampling_rate_hz (int, optional): Expected sample rate of the device. Defaults to `1`.
@@ -83,7 +81,7 @@ class DummyProducer(Producer):
         self._payload_num_bytes = payload_num_bytes
         self._sequence = 0
         self._data = random.randbytes(self._payload_num_bytes)
-        self._tag: str = "%s.data" % self._log_source_tag()
+        self._tag: str = "%s.data" % topic
         self._next_period: float
 
         stream_out_spec = {
@@ -92,6 +90,7 @@ class DummyProducer(Producer):
         }
 
         super().__init__(
+            topic=topic,
             host_ip=host_ip,
             stream_out_spec=stream_out_spec,
             logging_spec=logging_spec,

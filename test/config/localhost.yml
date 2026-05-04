@@ -56,6 +56,7 @@ audio_codec_config_filepath : null
 producer_specs:
   - package: "dummy"
     class: "DummyProducer"
+    topic: "dummy_producer"
     settings:
       sampling_rate_hz: ${HERMES_EXP_RATE}
       payload_num_bytes: ${HERMES_EXP_NUM_BYTES}
@@ -64,10 +65,12 @@ producer_specs:
 consumer_specs:
   - package: "dummy"
     class: "DummyConsumer"
+    topic: "dummy_consumer"
     settings:
       stream_in_specs:
         - package: "dummy"
           class: "DummyProducer"
+          topic: "dummy_producer"
           settings:
             sampling_rate_hz: ${HERMES_EXP_RATE}
             payload_num_bytes: ${HERMES_EXP_NUM_BYTES}

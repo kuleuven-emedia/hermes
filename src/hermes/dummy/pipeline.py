@@ -43,12 +43,9 @@ from hermes.base.nodes.pipeline import Pipeline
 class DummyPipeline(Pipeline):
     """A Node showcasing the Pipeline behavior, consuming external data and generating new data relayed back to the Broker."""
 
-    @classmethod
-    def _log_source_tag(cls) -> str:
-        return "dummy-pipeline"
-
     def __init__(
         self,
+        topic: str,
         host_ip: str,
         stream_out_spec: dict,
         stream_in_specs: list[dict],
@@ -63,6 +60,7 @@ class DummyPipeline(Pipeline):
         """Constructor of the DummyPipeline Node.
 
         Args:
+            topic (str): Topic to which the pipeline will publish messages.
             host_ip (str): IP address of the local master Broker.
             stream_out_spec (dict): Mapping of corresponding Stream object parameters to user-defined configuration values.
             stream_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
@@ -80,6 +78,7 @@ class DummyPipeline(Pipeline):
         self._next_period: float
 
         super().__init__(
+            topic=topic,
             host_ip=host_ip,
             stream_out_spec=stream_out_spec,
             stream_in_specs=stream_in_specs,
@@ -101,7 +100,7 @@ class DummyPipeline(Pipeline):
 
     def _process_data(self, topic: str, msg: dict) -> None:
         process_time_s: float = get_time()
-        tag: str = "%s.data" % self._log_source_tag()
+        tag: str = "%s.data" % self.topic
         data = msg["data"]["sensor-emulator"]
         data["flag"] = 1
         self._publish(
@@ -112,7 +111,7 @@ class DummyPipeline(Pipeline):
         if self._is_keep_samples and self._is_continue_generate:
             process_time_s = get_time()
             if self._next_period <= process_time_s:
-                tag: str = "%s.data" % self._log_source_tag()
+                tag: str = "%s.data" % self.topic
                 data = {
                     "data": "".join(
                         [

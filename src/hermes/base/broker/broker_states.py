@@ -231,8 +231,8 @@ class RunningState(AbstractBrokerState):
         context._set_broker_ready()
         print("\n\n### %s ###\n\n" % (CMD_GO), flush=True)
         if (duration_s := self._context._get_duration()) is not None:
-            self._is_continue_fn = lambda: get_time() < (
-                self._context._get_start_time() + duration_s
+            self._is_continue_fn = lambda: (
+                get_time() < (self._context._get_start_time() + duration_s)
             )
         else:
             self._is_continue_fn = lambda: True

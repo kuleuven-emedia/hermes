@@ -65,6 +65,7 @@ audio_codec_config_filepath : null
 producer_specs:
   - package: "dummy"
     class: "DummyProducer"
+    topic: "dummy_producer"
     settings:
       sampling_rate_hz: 1
 
@@ -72,10 +73,12 @@ producer_specs:
 consumer_specs:
   - package: "dummy"
     class: "DummyConsumer"
+    topic: "dummy_consumer"
     settings:
       stream_in_specs:
         - package: "dummy"
           class: "DummyProducer"
+          topic: "dummy_producer"
           settings:
             sampling_rate_hz: 1
 

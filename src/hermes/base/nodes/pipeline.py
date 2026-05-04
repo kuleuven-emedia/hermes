@@ -56,6 +56,7 @@ class Pipeline(PipelineInterface, Node):
 
     def __init__(
         self,
+        topic: str,
         host_ip: str,
         stream_out_spec: dict,
         stream_in_specs: list[dict],
@@ -69,6 +70,7 @@ class Pipeline(PipelineInterface, Node):
         """Constructor of the Pipeline parent class.
 
         Args:
+            topic (str): Uniquely identifying tag for the Node and its data.
             host_ip (str): IP address of the local master Broker.
             stream_out_spec (dict): Mapping of corresponding Stream object parameters to user-defined configuration values.
             stream_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
@@ -80,6 +82,7 @@ class Pipeline(PipelineInterface, Node):
             port_killsig (str, optional): Local port to listen to for local master Broker's termination signal. Defaults to `PORT_KILL`.
         """
         super().__init__(
+            topic=topic,
             host_ip=host_ip,
             port_sync=port_sync,
             port_killsig=port_killsig,
@@ -104,6 +107,7 @@ class Pipeline(PipelineInterface, Node):
         self._is_producer_ended: OrderedDict[str, bool] = OrderedDict()
 
         for stream_spec in stream_in_specs:
+            topic_name: str = stream_spec["topic"]
             module_name: str = stream_spec["package"]
             class_name: str = stream_spec["class"]
             specs: dict = stream_spec["settings"]
@@ -112,11 +116,11 @@ class Pipeline(PipelineInterface, Node):
                 search_module_class(module_name, class_name)
             )  # type: ignore
             class_object: Stream = class_type.create_stream(specs)
-            self._in_streams.setdefault(class_type._log_source_tag(), class_object)
-            self._is_producer_ended.setdefault(class_type._log_source_tag(), False)
+            self._in_streams.setdefault(topic_name, class_object)
+            self._is_producer_ended.setdefault(topic_name, False)
 
         # Create the data storing object.
-        self._storage = Storage(self._log_source_tag(), logging_spec)
+        self._storage = Storage(self.topic, logging_spec)
 
         # Launch datalogging thread with reference to the Stream objects, to save Pipeline's outputs and inputs.
         self._storage_thread = threading.Thread(
@@ -124,7 +128,7 @@ class Pipeline(PipelineInterface, Node):
             args=(
                 OrderedDict(
                     [
-                        (self._log_source_tag(), self._out_stream),
+                        (self.topic, self._out_stream),
                         *list(self._in_streams.items()),
                     ]
                 ),
@@ -275,7 +279,7 @@ class Pipeline(PipelineInterface, Node):
         """Send 'END' empty packet and label Node as done to safely finish and exit the process and its threads."""
         self._pub.send_multipart(
             [
-                ("%s.data" % self._log_source_tag()).encode("utf-8"),
+                ("%s.data" % self.topic).encode("utf-8"),
                 b"",
                 CMD_END.encode("utf-8"),
             ]
@@ -287,14 +291,14 @@ class Pipeline(PipelineInterface, Node):
         self._storage.cleanup()
         # Before closing the PUB socket, wait for the 'BYE' signal from the Broker.
         self._sync.send_multipart(
-            [self._log_source_tag().encode("utf-8"), CMD_EXIT.encode("utf-8")]
+            [self.topic.encode("utf-8"), CMD_EXIT.encode("utf-8")]
         )
         host, cmd = (
             self._sync.recv_multipart()
         )  # no need to read contents of the message.
         print(
             "%s received %s from %s."
-            % (self._log_source_tag(), cmd.decode("utf-8"), host.decode("utf-8")),
+            % (self.topic, cmd.decode("utf-8"), host.decode("utf-8")),
             flush=True,
         )
         self._pub.close()

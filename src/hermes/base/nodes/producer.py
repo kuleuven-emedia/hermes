@@ -54,6 +54,7 @@ class Producer(ProducerInterface, Node):
 
     def __init__(
         self,
+        topic: str,
         host_ip: str,
         stream_out_spec: dict,
         logging_spec: LoggingSpec,
@@ -66,6 +67,7 @@ class Producer(ProducerInterface, Node):
         """Constructor of the Producer parent class.
 
         Args:
+            topic (str): Uniquely identifying tag for the Producer and its data.
             host_ip (str): IP address of the local master Broker.
             stream_out_spec (dict): Mapping of corresponding Stream object parameters to user-defined configuration values.
             logging_spec (LoggingSpec): Specification of what and how to store.
@@ -76,6 +78,7 @@ class Producer(ProducerInterface, Node):
             transmit_delay_sample_period_s (float, optional): Duration of the period over which to estimate propagation delay of measurements from the corresponding device. Defaults to `float('nan')`.
         """
         super().__init__(
+            topic=topic,
             host_ip=host_ip,
             port_sync=port_sync,
             port_killsig=port_killsig,
@@ -92,12 +95,12 @@ class Producer(ProducerInterface, Node):
         self._stream: Stream = self.create_stream(stream_out_spec)
 
         # Create the data storing object.
-        self._storage = Storage(self._log_source_tag(), logging_spec)
+        self._storage = Storage(self.topic, logging_spec)
 
         # Launch datalogging thread with reference to the Stream object.
         self._storage_thread = threading.Thread(
             target=self._storage,
-            args=(OrderedDict([(self._log_source_tag(), self._stream)]),),
+            args=(OrderedDict([(self.topic, self._stream)]),),
         )
         self._storage_thread.start()
 
@@ -109,10 +112,10 @@ class Producer(ProducerInterface, Node):
                 kwargs={
                     "ping_fn": self._ping_device,
                     "publish_fn": lambda time_s, delay_s: self._publish(
-                        tag="%s.connection" % self._log_source_tag(),
+                        tag="%s.connection" % self.topic,
                         time_s=time_s,
                         data={
-                            "%s-connection" % self._log_source_tag(): {
+                            "%s-connection" % self.topic: {
                                 "transmission_delay": delay_s
                             }
                         },
@@ -170,7 +173,7 @@ class Producer(ProducerInterface, Node):
         """Send 'END' empty packet and label Node as done to safely finish and exit the process and its threads."""
         self._pub.send_multipart(
             [
-                ("%s.data" % self._log_source_tag()).encode("utf-8"),
+                ("%s.data" % self.topic).encode("utf-8"),
                 CMD_END.encode("utf-8"),
             ]
         )
@@ -184,14 +187,14 @@ class Producer(ProducerInterface, Node):
             self._delay_estimator.cleanup()
         # Before closing the PUB socket, wait for the 'BYE' signal from the Broker.
         self._sync.send_multipart(
-            [self._log_source_tag().encode("utf-8"), CMD_EXIT.encode("utf-8")]
+            [self.topic.encode("utf-8"), CMD_EXIT.encode("utf-8")]
         )
         host, cmd = (
             self._sync.recv_multipart()
         )  # no need to read contents of the message.
         print(
             "%s received %s from %s."
-            % (self._log_source_tag(), cmd.decode("utf-8"), host.decode("utf-8")),
+            % (self.topic, cmd.decode("utf-8"), host.decode("utf-8")),
             flush=True,
         )
         self._pub.close()

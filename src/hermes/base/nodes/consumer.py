@@ -59,6 +59,7 @@ class Consumer(ConsumerInterface, Node):
 
     def __init__(
         self,
+        topic: str,
         host_ip: str,
         stream_in_specs: list[dict],
         logging_spec: LoggingSpec,
@@ -69,6 +70,7 @@ class Consumer(ConsumerInterface, Node):
         """Constructor of the Consumer parent class.
 
         Args:
+            topic (str): Uniquely identifying tag for the Consumer and its data.
             host_ip (str): IP address of the local master Broker.
             stream_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
             logging_spec (LoggingSpec): Specification of what and how to store.
@@ -77,6 +79,7 @@ class Consumer(ConsumerInterface, Node):
             port_killsig (str, optional): Local port to listen to for local master Broker's termination signal. Defaults to `PORT_KILL`.
         """
         super().__init__(
+            topic=topic,
             host_ip=host_ip,
             port_sync=port_sync,
             port_killsig=port_killsig,
@@ -89,6 +92,7 @@ class Consumer(ConsumerInterface, Node):
         # Instantiate all desired Streams that the Consumer will subscribe to.
         self._streams: OrderedDict[str, Stream] = OrderedDict()
         for stream_spec in stream_in_specs:
+            topic_name: str = stream_spec["topic"]
             module_name: str = stream_spec["package"]
             class_name: str = stream_spec["class"]
             specs: dict = stream_spec["settings"]
@@ -98,11 +102,11 @@ class Consumer(ConsumerInterface, Node):
             )
             class_object: Stream = class_type.create_stream(specs)
             # Store the streamer object.
-            self._streams.setdefault(class_type._log_source_tag(), class_object)
-            self._is_producer_ended.setdefault(class_type._log_source_tag(), False)
+            self._streams.setdefault(topic_name, class_object)
+            self._is_producer_ended.setdefault(topic_name, False)
 
         # Create the data storing object.
-        self._storage = Storage(self._log_source_tag(), logging_spec)
+        self._storage = Storage(self.topic, logging_spec)
         # Launch datalogging thread with reference to the Stream object.
         self._storage_thread = threading.Thread(
             target=self._storage, args=(self._streams,)
@@ -177,14 +181,14 @@ class Consumer(ConsumerInterface, Node):
         self._storage_thread.join()
         # Before closing the PUB socket, wait for the 'BYE' signal from the Broker.
         self._sync.send_multipart(
-            [self._log_source_tag().encode("utf-8"), CMD_EXIT.encode("utf-8")]
+            [self.topic.encode("utf-8"), CMD_EXIT.encode("utf-8")]
         )
         host, cmd = (
             self._sync.recv_multipart()
         )  # no need to read contents of the message.
         print(
             "%s received %s from %s."
-            % (self._log_source_tag(), cmd.decode("utf-8"), host.decode("utf-8")),
+            % (self.topic, cmd.decode("utf-8"), host.decode("utf-8")),
             flush=True,
         )
         self._sub.close()

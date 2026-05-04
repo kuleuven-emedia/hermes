@@ -39,9 +39,10 @@ def launch_node(spec: dict, input_queue: "Queue[tuple[float, str]]"):
         spec (dict): Specification containing at least package and `Node` names, and constructor arguments specific to that `Node`.
         input_queue (Queue[tuple[float, str]]): Multiprocessing queue to fan-in user keyboard inputs if the `Node` is interested to receive any.
     """
+    topic_name: str = spec["topic"]
     module_name: str = spec["package"]
     class_name: str = spec["class"]
     class_args: dict = spec["settings"]
     node_class: type[NodeInterface] = search_module_class(module_name, class_name)
-    node: Node = node_class(**class_args, input_queue=input_queue)
+    node: Node = node_class(topic=topic_name, **class_args, input_queue=input_queue)
     node()

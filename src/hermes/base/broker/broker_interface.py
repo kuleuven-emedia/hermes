@@ -35,16 +35,6 @@ from hermes.utils.types import ZMQResult
 class BrokerInterface(ABC):
     """Interface for the Broker component."""
 
-    @classmethod
-    @abstractmethod
-    def _log_source_tag(cls) -> str:
-        """Read-only class property identifying the component.
-
-        Returns:
-            str: Unique identifier.
-        """
-        pass
-
     @abstractmethod
     def _start_local_nodes(self) -> None:
         """Spawn specified locally hosted Nodes, each in a separate process."""

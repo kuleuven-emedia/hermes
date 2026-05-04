@@ -46,6 +46,7 @@ class Node(NodeInterface):
 
     def __init__(
         self,
+        topic: str,
         ref_time: float,
         host_ip: str = DNS_LOCALHOST,
         port_sync: str = PORT_SYNC_HOST,
@@ -54,6 +55,7 @@ class Node(NodeInterface):
         """Constructor of the Node parent class.
 
         Args:
+            topic (str): Uniquely identifying tag for the Node and its data.
             ref_time (float): Reference time of the local Broker w.r.t which to align all Nodes.
             host_ip (str, optional): IP address of the local master Broker. Defaults to `DNS_LOCALHOST`.
             port_sync (str, optional): Local port to listen to for local master Broker's startup coordination. Defaults to `PORT_SYNC_HOST`.
@@ -62,6 +64,7 @@ class Node(NodeInterface):
         self._host_ip = host_ip
         self._port_sync = port_sync
         self._port_killsig = port_killsig
+        self.__topic = topic
         self.__is_done = False
         self._ref_time_s = ref_time
         init_time(ref_time=ref_time)
@@ -75,6 +78,10 @@ class Node(NodeInterface):
     def _is_done(self) -> bool:
         return self.__is_done
 
+    @property
+    def topic(self) -> str:
+        return self.__topic
+
     @_is_done.setter
     def _is_done(self, done: bool) -> None:
         self.__is_done = done
@@ -84,7 +91,7 @@ class Node(NodeInterface):
         while self._state.is_continue():
             self._state.run()
         self._cleanup()
-        print("%s exited, goodbye <3" % self._log_source_tag(), flush=True)
+        print("%s exited, goodbye <3" % self.topic, flush=True)
 
     def _set_state(self, state: AbstractNodeState) -> None:
         self._state = state
@@ -116,7 +123,7 @@ class Node(NodeInterface):
         pass
 
     def _deactivate_kill_poller(self) -> None:
-        print("%s received KILL signal" % self._log_source_tag(), flush=True)
+        print("%s received KILL signal" % self.topic, flush=True)
         # self._killsig.recv_multipart()
         self._poller.unregister(self._killsig)
 

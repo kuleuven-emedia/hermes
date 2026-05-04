@@ -75,13 +75,13 @@ class SyncState(AbstractNodeState):
 
     def run(self):
         self._sync.send_multipart(
-            [self._context._log_source_tag().encode("utf-8"), CMD_HELLO.encode("utf-8")]
+            [self._context.topic.encode("utf-8"), CMD_HELLO.encode("utf-8")]
         )
         host, cmd = self._sync.recv_multipart()
         print(
             "%s received %s from %s."
             % (
-                self._context._log_source_tag(),
+                self._context.topic,
                 cmd.decode("utf-8"),
                 host.decode("utf-8"),
             ),

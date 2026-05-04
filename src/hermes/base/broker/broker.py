@@ -74,10 +74,6 @@ class Broker(BrokerInterface):
     After all are ready, master Broker communicates trigger signal to start streaming.
     """
 
-    @classmethod
-    def _log_source_tag(cls) -> str:
-        return "manager"
-
     def __init__(
         self,
         host_ip: str,

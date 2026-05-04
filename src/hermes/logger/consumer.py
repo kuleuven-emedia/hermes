@@ -39,12 +39,9 @@ class DataLogger(Consumer):
     and the data they stream are written to disk periodically and/or at the end.
     """
 
-    @classmethod
-    def _log_source_tag(cls) -> str:
-        return "logger"
-
     def __init__(
         self,
+        topic: str,
         host_ip: str,
         stream_specs: list[dict],
         logging_spec: LoggingSpec,
@@ -57,6 +54,7 @@ class DataLogger(Consumer):
         """Constructor of the centralized Storage Node.
 
         Args:
+            topic (str): Topic to which the consumer will subscribe.
             host_ip (str): IP address of the local master Broker.
             stream_specs (list[dict]): List of mappings of user-configured incoming modalities.
             logging_spec (LoggingSpec): Mapping of Storage object parameters to user-defined configuration values.
@@ -66,6 +64,7 @@ class DataLogger(Consumer):
             log_history_filepath (str | None, optional): File path to the system log file. Defaults to `None`.
         """
         super().__init__(
+            topic=topic,
             host_ip=host_ip,
             stream_in_specs=stream_specs,
             logging_spec=logging_spec,

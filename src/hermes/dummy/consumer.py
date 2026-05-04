@@ -34,12 +34,9 @@ from hermes.base.nodes.consumer import Consumer
 class DummyConsumer(Consumer):
     """A Node showcasing the Consumer behavior, consumeing external data relayed to it by the Broker."""
 
-    @classmethod
-    def _log_source_tag(cls) -> str:
-        return "dummy-consumer"
-
     def __init__(
         self,
+        topic: str,
         host_ip: str,
         stream_in_specs: list[dict],
         logging_spec: LoggingSpec,
@@ -51,6 +48,7 @@ class DummyConsumer(Consumer):
         """Constructor of the DummyConsumer Node.
 
         Args:
+            topic (str): Topic to which the consumer will subscribe.
             host_ip (str): IP address of the local master Broker.
             stream_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
             logging_spec (LoggingSpec): Specification of what and how to store.
@@ -59,6 +57,7 @@ class DummyConsumer(Consumer):
             port_killsig (str, optional): Local port to listen to for local master Broker's termination signal. Defaults to `PORT_KILL`.
         """
         super().__init__(
+            topic=topic,
             host_ip=host_ip,
             stream_in_specs=stream_in_specs,
             logging_spec=logging_spec,

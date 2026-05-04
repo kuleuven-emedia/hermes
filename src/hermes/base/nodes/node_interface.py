@@ -32,16 +32,6 @@ import zmq
 class NodeInterface(ABC):
     """Interface for the Node components."""
 
-    @classmethod
-    @abstractmethod
-    def _log_source_tag(cls) -> str:
-        """Read-only property uniquely identifying the Node.
-
-        Returns:
-            str: Unique key identifying the Node in the data exchange.
-        """
-        pass
-
     @property
     @abstractmethod
     def _is_done(self) -> bool:
