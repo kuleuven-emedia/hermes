@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pysio-hermes"
-dynamic = ["version"]
+version = "0.3.0"
 requires-python = ">=3.7"
 authors = [
   { name="Maxim Yudayev", email="maxim.yudayev@gmail.com" },
@@ -42,9 +42,6 @@ dependencies = [
   "openpyxl",
   "orjson",
 ]
-
-[tool.setuptools.dynamic]
-version = {attr = "hermes.__version__.__version__"}
 
 [project.scripts]
 hermes-cli = "hermes.cli:app"

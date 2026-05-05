@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
+## [0.3.0](https://github.com/maximyudayev/hermes/releases/tag/0.3.0) - 2026-05-05
+
+<small>[Compare with 0.2.0](https://github.com/maximyudayev/hermes/compare/0.2.0..0.3.0)</small>
+
+### Features
+- Provides `logging_spec` in config YAML files individually for each `Node` to avoid writing same videos twice (e.g. in smartglasses node, and in AI node that processes the video) ([9bdc286](https://github.com/maximyudayev/hermes/commit/9bdc286593640c52a84ce7caf32e4bdac8fe7507) by Maxim Yudayev).
+- Adds configurable PUB/SUB topics for Nodes to allow multiple instances of the same `Node` and avoid clashes at the PUB/SUB layer ([bbe2040](https://github.com/maximyudayev/hermes/commit/bbe20407989c16e231b64305b90ae7ce0368ca9c) by Maxim Yudayev).
+
+### Bug Fixes
+- Cross-coupled hosts with `Pipeline` nodes that consume each other's data rebroadcast the same data back and forth, scramble data in HDF5, and lock-up experiment termination ([22c6383](https://github.com/maximyudayev/hermes/commit/22c63830f2615b369d47d4c59e1c2f81ccf6e631) by Maxim Yudayev).
+
 ## [0.2.0](https://github.com/maximyudayev/hermes/releases/tag/0.2.0) - 2026-01-18
 
 <small>[Compare with 0.1.8](https://github.com/maximyudayev/hermes/compare/0.1.8..0.2.0)</small>
