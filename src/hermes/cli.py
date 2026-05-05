@@ -36,7 +36,16 @@ import json
 import argparse
 import platform
 
-from hermes.__version__ import __version__
+try:
+    # For Python 3.8+
+    from importlib.metadata import PackageNotFoundError, version
+except ImportError:
+    # For Python < 3.8
+    from importlib_metadata import PackageNotFoundError, version
+try:
+    __version__ = version("pysio-hermes")
+except PackageNotFoundError:
+    __version__ = "NA"
 from hermes.base.broker.broker import Broker
 from hermes.utils.argparse_utils import ParseExperimentKwargs, validate_path
 from hermes.utils.time_utils import get_ref_time, get_time
@@ -387,7 +396,12 @@ def configure_specs(
             counters.
     """
     ref_time_s = get_ref_time()
-    logging_spec = LoggingSpec(
+
+    node_specs: list[dict] = (
+        args.producer_specs + args.consumer_specs + args.pipeline_specs
+    )
+
+    default_logging_spec = LoggingSpec(
         log_dir=log_dir,
         log_time_s=log_time_s,
         ref_time_s=ref_time_s,
@@ -395,16 +409,23 @@ def configure_specs(
         **args.logging_spec,
     )
 
-    node_specs: list[dict] = (
-        args.producer_specs + args.consumer_specs + args.pipeline_specs
-    )
     for spec in node_specs:
         spec["settings"]["host_ip"] = args.host_ip
-        spec["settings"]["logging_spec"] = logging_spec
         spec["settings"]["port_pub"] = PORT_BACKEND
         spec["settings"]["port_sub"] = PORT_FRONTEND
         spec["settings"]["port_sync"] = PORT_SYNC_HOST
         spec["settings"]["port_killsig"] = PORT_KILL
+        if "logging_spec" in spec:
+            logging_spec = LoggingSpec(
+                log_dir=log_dir,
+                log_time_s=log_time_s,
+                ref_time_s=ref_time_s,
+                experiment=args.experiment,
+                **spec["logging_spec"],
+            )
+            spec["settings"]["logging_spec"] = logging_spec
+        else:
+            spec["settings"]["logging_spec"] = default_logging_spec
 
     return args, node_specs, ref_time_s
 

@@ -84,3 +84,13 @@ pipeline_specs:
           settings:
             sampling_rate_hz: 1
             payload_num_bytes: 100
+    logging_spec:
+      stream_period_s     : 5
+      stream_hdf5         : True
+      stream_csv          : False
+      stream_video        : False
+      stream_audio        : False
+      dump_csv            : False
+      dump_hdf5           : False
+      dump_video          : False
+      dump_audio          : False
