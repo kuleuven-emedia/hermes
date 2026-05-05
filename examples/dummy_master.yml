@@ -26,27 +26,27 @@
 # ############
 
 
-host_ip : "192.168.1.100"
+host_ip : "10.220.25.162"
 is_master_broker: True
 
-remote_subscriber_ips: []
-remote_publisher_ips: []
-
+remote_subscriber_ips:
+  - "10.220.25.99"
+remote_publisher_ips:
+  - "10.220.25.99"
 connections:
-  - ssh_host_ip: "192.168.1.101"
-    ssh_username: "Owner"
-    ssh_key_path: "C:/Users/Owner/.ssh/id_ed25519"
-    platform: "Windows"
-    project_dir: "D:/hermes"
-    output_dir: "data"
-    config_filepath: "examples/dummy_slave.yml"
+  - ssh_username: "pi"
+    ssh_host_ip: "10.220.25.99"
+    platform: "Linux"
+    config_filepath: "./examples/dummy_slave.yml"
+    project_dir: "~/Documents/hermes"
+    output_dir: "./data"
 
 is_remote_kill: False
 remote_kill_ip: null
 
 
 logging_spec:
-  stream_period_s     : 30
+  stream_period_s     : 10
   
   stream_hdf5         : True
   stream_csv          : False
@@ -65,22 +65,28 @@ audio_codec_config_filepath : null
 producer_specs:
   - package: "dummy"
     class: "DummyProducer"
-    topic: "dummy_producer"
+    topic: "dummy_producer_master"
     settings:
       sampling_rate_hz: 1
+      payload_num_bytes: 100
 
 
-consumer_specs:
+consumer_specs: []
+
+
+pipeline_specs:
   - package: "dummy"
-    class: "DummyConsumer"
-    topic: "dummy_consumer"
+    class: "DummyPipeline"
+    topic: "dummy_pipeline_master"
     settings:
+      is_async_generate: true
+      stream_out_spec:
+        incoming_payload_num_bytes: 100
+        sampling_rate_hz: 1
       stream_in_specs:
         - package: "dummy"
           class: "DummyProducer"
-          topic: "dummy_producer"
+          topic: "dummy_producer_slave"
           settings:
             sampling_rate_hz: 1
-
-
-pipeline_specs: []
+            payload_num_bytes: 100

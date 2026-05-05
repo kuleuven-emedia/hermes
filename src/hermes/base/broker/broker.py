@@ -339,14 +339,20 @@ class Broker(BrokerInterface):
             if recv_socket in self._backends:
                 msg = recv_socket.recv_multipart()
                 on_data_received(msg)
-                for send_socket in self._frontends:
-                    send_socket.send_multipart(msg)
+                if recv_socket is not self._backends[0]:
+                    self._frontends[0].send_multipart(msg)
+                else:
+                    for send_socket in self._frontends:
+                        send_socket.send_multipart(msg)
             # Forwards subscription packets from subscribers to publishers.
             if recv_socket in self._frontends:
                 msg = recv_socket.recv_multipart()
                 on_subscription_changed(msg)
-                for send_socket in self._backends:
-                    send_socket.send_multipart(msg)
+                if recv_socket is not self._frontends[0]:
+                    self._backends[0].send_multipart(msg)
+                else:
+                    for send_socket in self._backends:
+                        send_socket.send_multipart(msg)
 
     def _check_for_kill(self, poll_res: ZMQResult) -> bool:
         for sock, _ in poll_res:

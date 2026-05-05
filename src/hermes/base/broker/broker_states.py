@@ -130,7 +130,7 @@ class SyncBrokerBarrierState(AbstractBrokerState):
 
     def run(self) -> None:
         # I am remote publishing Broker, I must notify subscribing Brokers that I am ready.
-        for ip in self._remote_sub_brokers:
+        for ip in self._brokers_left_to_acknowledge:
             self._sync_remote_socket.send_multipart(
                 [
                     ("%s:%s" % (ip, PORT_SYNC_REMOTE)).encode("utf-8"),
@@ -151,11 +151,11 @@ class SyncBrokerBarrierState(AbstractBrokerState):
                 "%s sent %s to %s" % (broker_name, cmd.decode("utf-8"), self._host_ip),
                 flush=True,
             )
-            if broker_name in self._brokers_left_to_acknowledge:
+            if cmd == CMD_ACK.encode("utf-8") and broker_name in self._brokers_left_to_acknowledge:
                 # Remote publisher received ACK from remote subscriber.
                 self._brokers_left_to_acknowledge.remove(broker_name)
                 self._brokers[broker_name] = address
-            elif broker_name in self._brokers_left_to_checkin:
+            elif cmd == CMD_HELLO.encode("utf-8") and broker_name in self._brokers_left_to_checkin:
                 self._brokers_left_to_checkin.remove(broker_name)
                 self._brokers[broker_name] = address
                 # Remote subscriber responds with ACK to remote publisher.
@@ -203,12 +203,15 @@ class StartState(AbstractBrokerState):
                 )
         # Slave Brokers block on the reeceive socket, waiting for the time.
         else:
-            address, _, cmd, start_time_bytes = sync_remote_socket.recv_multipart()
-            start_time_s = int.from_bytes(start_time_bytes, byteorder="big")
+            while True:
+                address, _, cmd, start_time_bytes = sync_remote_socket.recv_multipart()
+                if cmd == CMD_START_TIME.encode("utf-8"):
+                    start_time_s = int.from_bytes(start_time_bytes, byteorder="big")
+                    break
 
         # Each Broker waits until that time comes to trigger start of logging, with 1ms precision.
         while (current_time_s := get_time()) < start_time_s:
-            time.sleep(min(0.001, start_time_s - current_time_s))
+            time.sleep(min(0.0001, start_time_s - current_time_s))
 
         # Trigger local Nodes to start logging.
         for name, address in list(nodes.items()):
@@ -315,7 +318,7 @@ class JoinNodeBarrierState(AbstractBrokerState):
             # Check if the END packet came from the Broker's scope, (one of the Broker's local Nodes).
             #   Continue brokering packets if just proxing it (not Broker's local Nodes).
             topic = msg[0].decode().split(".")[0]
-            if self._nodes_expected_end_pub_packet:
+            if topic in self._nodes_expected_end_pub_packet:
                 self._nodes_expected_end_pub_packet.remove(topic)
                 # Allow local Producer/Pipeline to exit.
                 self._release_local_node(topic)
@@ -395,7 +398,7 @@ class JoinBrokerBarrierState(AbstractBrokerState):
 
     def run(self):
         # Notify Brokers that listen to our data that we are done and ready to exit as soon as they received all last data from us.
-        for ip in self._remote_sub_brokers:
+        for ip in self._brokers_left_to_acknowledge:
             self._sync_remote_socket.send_multipart(
                 [
                     ("%s:%s" % (ip, PORT_SYNC_REMOTE)).encode("utf-8"),

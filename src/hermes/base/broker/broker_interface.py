@@ -121,7 +121,7 @@ class BrokerInterface(ABC):
     def _add_brokered_node(self, topic: str) -> None:
         """Add a unique local Node identifier joining the exchange via the Broker.
 
-        Noes uniquely self-identify by the data topic they produce.
+        Nodes uniquely self-identify by the data topic they produce.
 
         Args:
             topic (str): Unique identifier of the Node.

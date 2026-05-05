@@ -58,9 +58,3 @@ PORT_MVN = "9763"  # defined by MVN Analyze
 # IP addresses of devices on the network used by our system
 DNS_LOCALHOST = "localhost"
 IP_LOOPBACK = "127.0.0.1"
-
-# TODO: remove hardcoding
-IP_TERMINAL = "192.168.0.100"
-IP_PROSTHESIS = "192.168.0.101"
-IP_BACKPACK = "192.168.0.103"
-IP_VICON = "192.168.0.104"
