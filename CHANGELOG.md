@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
+## [0.4.3](https://github.com/maximyudayev/hermes/releases/tag/0.4.3) - 2026-07-06
+
+<small>[Compare with 0.4.2](https://github.com/maximyudayev/hermes/compare/0.4.2...0.4.3)</small>
+
+### Bug Fixes
+
+- Incorrectly set video ring buffer type ([96ba5c1](https://github.com/maximyudayev/hermes/commit/96ba5c17a3dcd7b78e7173e59973999b91bba542) by Maxim Yudayev).
+
+### Misc
+
+- Hotfix: `python<3.14` compatibility ([96ba993](https://github.com/maximyudayev/hermes/commit/96ba993657d2754a635e2a1c92419a9d81ca3bac) by Maxim Yudayev).
+
 ## [0.4.2](https://github.com/maximyudayev/hermes/releases/tag/0.4.2) - 2026-06-28
 
 <small>[Compare with 0.4.1](https://github.com/maximyudayev/hermes/compare/0.4.1...0.4.2)</small>
