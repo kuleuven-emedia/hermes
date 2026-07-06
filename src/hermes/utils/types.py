@@ -41,6 +41,37 @@ import zmq
 
 ExtraDataInfoDict: TypeAlias = Dict[str, Dict[str, Any]]
 ZMQResult: TypeAlias = Iterable[tuple[zmq.SyncSocket, int]]
+VideoFormatTuple = namedtuple("VideoFormatTuple", ("write_format", "pixel_format"))
+AudioFormatTuple = namedtuple("AudioFormatTuple", ("write_format", "pixel_format"))
+
+
+class VideoFormatEnum(Enum):
+    """Video format enumeration for supported FFmpeg video formats.
+
+    Must be a tuple of (<FFmpeg write format>, <Color format>), where:
+        write format is one of: `ffmpeg -formats`
+        pixel color is one of: `ffmpeg -pix_fmts`
+    """
+
+    BGR = VideoFormatTuple("rawvideo", "bgr24")
+    # YUV = VideoFormatTuple("rawvideo", "yuv420p")
+    JPEG = VideoFormatTuple("image2pipe", "yuv420p")
+    MJPEG = VideoFormatTuple("jpeg_pipe", "yuv420p")
+    BAYER_RG8 = VideoFormatTuple("rawvideo", "bayer_rggb8")
+
+
+class AudioFormatEnum(Enum):
+    """Audio format enumeration for supported FFmpeg video formats.
+
+    TODO:
+    Must be a tuple of (<FFmpeg write format>, ...), where:
+        write format is one of: `ffmpeg -formats`
+    """
+
+    BGR = AudioFormatTuple("rawvideo", "bgr24")
+    YUV = AudioFormatTuple("rawvideo", "yuv420p")
+    JPEG = AudioFormatTuple("image2pipe", "yuv420p")
+    BAYER_RG8 = AudioFormatTuple("rawvideo", "bayer_rggb8")
 
 
 @dataclass
@@ -94,8 +125,7 @@ class DataChannelInfo:
     timesteps_before_solidified: int
     extra_data_info: ExtraDataInfoDict
     data_notes: Mapping[str, str]
-    video_format: Optional[str] = None
-    video_color: Optional[str] = None
+    video_format: Optional[VideoFormatEnum] = None
     is_measure_rate_hz: Optional[bool] = None
     actual_rate_hz: Optional[float] = None
     dt_circular_buffer: Optional[List[float]] = None
@@ -203,36 +233,3 @@ class LoggingSpec:
     dump_audio: Optional[bool] = False
     video_codec: Optional[VideoCodec] = None
     audio_codec: Optional[AudioCodec] = None
-
-
-VideoFormatTuple = namedtuple("VideoFormatTuple", ("format", "color"))
-AudioFormatTuple = namedtuple("AudioFormatTuple", ("format", "color"))
-
-
-class VideoFormatEnum(Enum):
-    """Video format enumeration for supported FFmpeg video formats.
-
-    Must be a tuple of (<FFmpeg write format>, <Color format>), where:
-        write format is one of: `ffmpeg -formats`
-        pixel color is one of: `ffmpeg -pix_fmts`
-    """
-
-    BGR = VideoFormatTuple("rawvideo", "bgr24")
-    YUV = VideoFormatTuple("rawvideo", "yuv420p")
-    JPEG = VideoFormatTuple("image2pipe", "yuv420p")
-    MJPEG = VideoFormatTuple("jpeg_pipe", "yuv420p")
-    BAYER_RG8 = VideoFormatTuple("rawvideo", "bayer_rggb8")
-
-
-class AudioFormatEnum(Enum):
-    """Audio format enumeration for supported FFmpeg video formats.
-
-    TODO:
-    Must be a tuple of (<FFmpeg write format>, ...), where:
-        write format is one of: `ffmpeg -formats`
-    """
-
-    BGR = AudioFormatTuple("rawvideo", "bgr24")
-    YUV = AudioFormatTuple("rawvideo", "yuv420p")
-    JPEG = AudioFormatTuple("image2pipe", "yuv420p")
-    BAYER_RG8 = AudioFormatTuple("rawvideo", "bayer_rggb8")

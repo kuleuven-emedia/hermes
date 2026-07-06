@@ -79,7 +79,7 @@ class DataBundle:
         is_measure_rate_hz: Optional[bool] = False,
         data_notes: Optional[Mapping[str, str]] = {},
         is_video: Optional[bool] = False,
-        color_format: Optional[VideoFormatEnum] = None,
+        video_format: Optional[VideoFormatEnum] = None,
         is_audio: Optional[bool] = False,
         timesteps_before_solidified: Optional[int] = 0,
         extra_data_info: Optional[ExtraDataInfoDict] = {},
@@ -102,7 +102,7 @@ class DataBundle:
             is_measure_rate_hz (bool, optional): Whether to compute the effective sampling frequency. Defaults to `False`.
             data_notes (Mapping[str, str], optional): Mapping of channels to notes for `Storage` to use in file metadata. Defaults to `{}`.
             is_video (bool, optional): Whether it is a video channel. Defaults to `False`.
-            color_format (VideoFormatEnum, optional): One of the supported identifiers (see `types.py`). Defaults to `None`.
+            video_format (VideoFormatEnum, optional): One of the supported identifiers (see `types.py`). Defaults to `None`.
             is_audio (bool, optional): Whether it is an audio channel. Defaults to `False`.
             timesteps_before_solidified (int, optional): How many most recent samples to keep in memory before flushing. Defaults to `0`.
             extra_data_info (ExtraDataInfoDict, optional): Additional mapping that will be streamed along with data,
@@ -118,7 +118,7 @@ class DataBundle:
             is_measure_rate_hz=is_measure_rate_hz,
             data_notes=data_notes,
             is_video=is_video,
-            color_format=color_format,
+            video_format=video_format,
             is_audio=is_audio,
             timesteps_before_solidified=timesteps_before_solidified,
             extra_data_info=extra_data_info,
@@ -136,7 +136,7 @@ class DataBundle:
         is_measure_rate_hz: Optional[bool] = False,
         data_notes: Optional[Mapping[str, str]] = {},
         is_video: Optional[bool] = False,
-        color_format: Optional[VideoFormatEnum] = None,
+        video_format: Optional[VideoFormatEnum] = None,
         is_audio: Optional[bool] = False,
         timesteps_before_solidified: Optional[int] = 0,
         extra_data_info: Optional[ExtraDataInfoDict] = {},
@@ -158,7 +158,7 @@ class DataBundle:
             is_measure_rate_hz=is_measure_rate_hz,
             data_notes=data_notes,
             is_video=is_video,
-            color_format=color_format,
+            video_format=video_format,
             is_audio=is_audio,
             timesteps_before_solidified=timesteps_before_solidified,
             extra_data_info=extra_data_info,
@@ -189,7 +189,7 @@ class DataBundle:
         is_measure_rate_hz: Optional[bool] = False,
         data_notes: Optional[Mapping[str, str]] = {},
         is_video: Optional[bool] = False,
-        color_format: Optional[VideoFormatEnum] = None,
+        video_format: Optional[VideoFormatEnum] = None,
         is_audio: Optional[bool] = False,
         timesteps_before_solidified: Optional[int] = 0,
         extra_data_info: Optional[ExtraDataInfoDict] = {},
@@ -213,15 +213,14 @@ class DataBundle:
         # Record color formats to use by FFmpeg, for saving and displaying frames.
         if is_video:
             try:
-                if color_format is not None:
-                    self._bundle_info.channels[channel_name].video_format = color_format.value.format
-                    self._bundle_info.channels[channel_name].video_color = color_format.value.color
+                if video_format is not None:
+                    self._bundle_info.channels[channel_name].video_format = video_format
                 else:
                     raise KeyError
             except KeyError:
                 print(
-                    "Color format %s is not supported when specifying video frame pixel color format on channel."
-                    % color_format
+                    "Video format %s is not supported when specifying video pixel format and write format on a channel."
+                    % video_format
                 )
 
         # Some metadata to keep track of during running to measure the actual frame rate.
@@ -610,7 +609,7 @@ class DataContainer(ABC):
         is_measure_rate_hz: Optional[bool] = False,
         data_notes: Optional[Mapping[str, str]] = {},
         is_video: Optional[bool] = False,
-        color_format: Optional[VideoFormatEnum] = None,
+        video_format: Optional[VideoFormatEnum] = None,
         is_audio: Optional[bool] = False,
         timesteps_before_solidified: Optional[int] = 0,
         extra_data_info: Optional[ExtraDataInfoDict] = {},
@@ -628,18 +627,18 @@ class DataContainer(ABC):
             is_measure_rate_hz (bool, optional): Whether to compute the effective sampling frequency. Defaults to `False`.
             data_notes (Mapping[str, str], optional): Mapping of channels to notes for `Storage` to use in file metadata. Defaults to `{}`.
             is_video (bool, optional): Whether it is a video channel. Defaults to `False`.
-            color_format (VideoFormatEnum, optional): One of the supported identifiers (see `types.py`). Defaults to `None`.
+            video_format (VideoFormatEnum, optional): One of the supported identifiers (see `types.py`). Defaults to `None`.
             is_audio (bool, optional): Whether it is an audio channel. Defaults to `False`.
             timesteps_before_solidified (int, optional): How many most recent samples to keep in memory before flushing. Defaults to `0`.
             extra_data_info (ExtraDataInfoDict, optional): Additional mapping that will be streamed along with data,
                 with at least 'data_type' and 'sample_size'. Defaults to `{}`.
         """
         if bundle_name not in self._data:
-            if is_video and color_format == VideoFormatEnum.MJPEG:
+            if is_video and video_format in [VideoFormatEnum.MJPEG]:
                 self._data[bundle_name] = RawBytesDataBundle(bundle_name)
             else:
                 self._data[bundle_name] = DataBundle(bundle_name)
-        elif is_video and color_format == VideoFormatEnum.MJPEG and type(self._data[bundle_name]) is DataBundle:
+        elif is_video and video_format in [VideoFormatEnum.MJPEG] and type(self._data[bundle_name]) is DataBundle:
             old_bundle = self._data[bundle_name]
             new_bundle = RawBytesDataBundle(bundle_name, old_bundle._bundle_info)
             new_bundle._data = old_bundle._data
@@ -655,7 +654,7 @@ class DataContainer(ABC):
             is_measure_rate_hz=is_measure_rate_hz,
             data_notes=data_notes,
             is_video=is_video,
-            color_format=color_format,
+            video_format=video_format,
             is_audio=is_audio,
             timesteps_before_solidified=timesteps_before_solidified,
             extra_data_info=extra_data_info,
@@ -673,7 +672,7 @@ class DataContainer(ABC):
                         (
                             "Description",
                             "Time of arrival of the (first) data point to the host PC (as part of a batch), "
-                            "to be used for aligned idexing of data between distributed hosts."
+                            "to be used for aligned idexing of data between distributed hosts. "
                             "Maps one-to-many with the main `DataBundle`.",
                         )
                     ]
@@ -718,16 +717,23 @@ class DataContainer(ABC):
         bundle_info: DataBundleInfo,
     ) -> None:
         is_video_bundle = any(ch_info.is_video for ch_info in bundle_info.channels.values())
-        is_mjpeg = any(filter(lambda x: getattr(x, "video_format", False) == VideoFormatEnum.MJPEG.value.format, bundle_info.channels.values()))
+        is_raw_bytes = any(
+            filter(
+                lambda x: 
+                    getattr(x, "video_format", False) in
+                    [VideoFormatEnum.MJPEG],
+                bundle_info.channels.values()
+            )
+        )
 
         # Recreate the data bundle according to the spec received over IPC, and bind it to the same shared memory.
         if bundle_name not in self._data:
-            if is_video_bundle and is_mjpeg:
+            if is_video_bundle and is_raw_bytes:
                 self._data[bundle_name] = RawBytesDataBundle(bundle_name, bundle_info)
             else:
                 self._data[bundle_name] = DataBundle(bundle_name, bundle_info)
         # Dynamically convert the `DataBundle` to `RawBytesDataBundle` if sensed that the bundle contains MJPEG video.
-        elif is_video_bundle and is_mjpeg and type(self._data[bundle_name]) is DataBundle:
+        elif is_video_bundle and is_raw_bytes and type(self._data[bundle_name]) is DataBundle:
             old_bundle = self._data[bundle_name]
             new_bundle = RawBytesDataBundle(bundle_name, old_bundle._bundle_info)
             new_bundle._data = old_bundle._data
@@ -735,7 +741,7 @@ class DataContainer(ABC):
 
         # Extract size of the memory preallocation for the MJPEG video channels.
         kwargs = {}
-        if is_video_bundle and hasattr(shm_buffer_metadata, "mem_size") and is_mjpeg:
+        if is_video_bundle and hasattr(shm_buffer_metadata, "mem_size") and is_raw_bytes:
             kwargs["mem_size"] = shm_buffer_metadata.mem_size
 
         self._data[bundle_name]._alloc_channel(

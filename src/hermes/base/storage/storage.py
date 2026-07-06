@@ -67,6 +67,7 @@ from hermes.utils.types import (
     VideoWriter,
     AudioWriter,
     CsvWriter,
+    VideoFormatEnum,
 )
 
 
@@ -407,8 +408,9 @@ class Storage(StorageInterface):
                     frame_height = channel_info.shm_buffer_metadata.sample_size[0]
                     frame_width = channel_info.shm_buffer_metadata.sample_size[1]
                     fps = channel_info.sampling_rate_hz
-                    input_stream_format: str = channel_info.video_format
-                    input_stream_pix_fmt: str = channel_info.video_color
+                    video_format: VideoFormatEnum = channel_info.video_format
+                    input_stream_format: str = video_format.value.write_format
+                    input_stream_pix_fmt: str = video_format.value.pixel_format
                     metadata_dict = {
                         "metadata:g:%d" % i: "%s=%s" % (k, v)
                         for i, (k, v) in enumerate(
