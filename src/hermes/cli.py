@@ -503,6 +503,8 @@ def launch_slave_hosts(
                 file_buf = f.read()
                 config: dict = yaml.safe_load(file_buf)
                 config_str = json.dumps(config)
+                pre_hook = conn.get("pre_hook", None)
+                pre_hook_script = f"{pre_hook} && " if pre_hook else ""
 
                 if conn["platform"] == "Windows":
                     escaped_config_str = config_str.replace('"', "'")
@@ -510,6 +512,7 @@ def launch_slave_hosts(
                         f"title HERMES - {conn['ssh_username']}@{conn['ssh_host_ip']} && "
                         f"cd /d {conn['project_dir']} && "
                         f"call .venv\\Scripts\\activate.bat && "
+                        f"{pre_hook_script}"
                         f'hermes-cli -o {conn["output_dir"]} -t {log_time_s} -e {experiment_str} -j "{escaped_config_str}" && '
                         f"exit"
                     )
@@ -520,6 +523,7 @@ def launch_slave_hosts(
                         f"cd {conn['project_dir']} && "
                         f"source .venv/bin/activate && "
                         f'export PYTHONPATH="$(pwd):$PYTHONPATH" && '
+                        f"{pre_hook_script}"
                         f"hermes-cli -o {conn['output_dir']} -t {log_time_s} -e {experiment_str} -j '{config_str}' && "
                         f"exit"
                     )
