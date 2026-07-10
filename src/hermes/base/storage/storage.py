@@ -27,7 +27,7 @@
 
 from collections import OrderedDict
 from io import TextIOWrapper
-from subprocess import Popen
+from subprocess import Popen, DEVNULL
 import os
 import time
 import asyncio
@@ -457,8 +457,9 @@ class Storage(StorageInterface):
                         **metadata_dict,
                     )
                     video_stream = video_stream.global_args("-hide_banner")
+                    pipe_out_target = DEVNULL if self._spec.is_quiet else None
                     video_subproc: Popen = ffmpeg.run_async(
-                        video_stream, quiet=self._spec.is_quiet, pipe_stdin=True
+                        video_stream, pipe_stdin=True, pipe_stderr=pipe_out_target, pipe_stdout=pipe_out_target,
                     )  # type: ignore
                     # Store the writer.
                     self._video_writers["/".join([node_name, bundle_name, channel_name])] = (
@@ -688,9 +689,6 @@ class Storage(StorageInterface):
         """Flush/close the video files writers."""
         for video_writer in self._video_writers.values():
             video_writer.subproc.stdin.close()  # type: ignore
-            if self._spec.is_quiet:
-                video_writer.subproc.stderr.close()  # type: ignore
-                video_writer.subproc.stdout.close()  # type: ignore
             video_writer.subproc.wait()
         self._video_writers = {}
 
