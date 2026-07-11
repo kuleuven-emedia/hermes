@@ -43,7 +43,7 @@ from hermes.utils.zmq_utils import (
     PORT_KILL,
     PORT_SYNC_HOST,
 )
-from hermes.utils.types import LoggingSpec
+from hermes.utils.types import LoggingSpec, NewData
 
 from hermes.base.nodes.node import Node
 from hermes.base.data_container import DataContainer
@@ -61,7 +61,7 @@ class Consumer(ConsumerInterface, Node):
 
     def __init__(
         self,
-        topic: str,
+        node_id: str,
         host_ip: str,
         data_in_specs: list[dict],
         logging_spec: LoggingSpec,
@@ -72,7 +72,7 @@ class Consumer(ConsumerInterface, Node):
         """Constructor of the Consumer parent class.
 
         Args:
-            topic (str): Uniquely identifying tag for the Consumer and its data.
+            node_id (str): Uniquely identifying tag for the Consumer and its data.
             host_ip (str): IP address of the local master Broker.
             data_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
             logging_spec (LoggingSpec): Specification of what and how to store.
@@ -81,7 +81,7 @@ class Consumer(ConsumerInterface, Node):
             port_killsig (str, optional): Local port to listen to for local master Broker's termination signal. Defaults to `PORT_KILL`.
         """
         super().__init__(
-            topic=topic,
+            node_id=node_id,
             host_ip=host_ip,
             port_sync=port_sync,
             port_killsig=port_killsig,
@@ -90,22 +90,26 @@ class Consumer(ConsumerInterface, Node):
         self._port_sub = port_sub
         self._is_producer_ended: OrderedDict[str, bool] = OrderedDict()
         self._poll_data_fn = self._poll_data_packets
+        self._subscriptions: list[str] = []
 
         # Instantiate all desired `Streams` that the `Consumer` will subscribe to.
         self._data_containers: OrderedDict[str, DataContainer] = OrderedDict()
         for data_spec in data_in_specs:
-            topic_name: str = data_spec["topic"]
+            in_node_id: str = data_spec["node_id"]
             module_name: str = data_spec["package"]
             class_name: str = data_spec["class"]
             spec: dict = data_spec["settings"]
+            topics: list[str] = data_spec["topics"]
             # Create the stream datastructure.
             class_type: type[ProducerInterface] | type[PipelineInterface] = (
                 search_module_class(module_name, class_name)
             )
             class_object: DataContainer = class_type.create_data_container(spec)
             # Store the streamer object.
-            self._data_containers.setdefault(topic_name, class_object)
-            self._is_producer_ended.setdefault(topic_name, False)
+            self._data_containers.setdefault(in_node_id, class_object)
+            self._is_producer_ended.setdefault(in_node_id, False)
+            # Allow for specific subscriptions to sub-topics, defaulting to the main topic.
+            self._subscriptions.extend(map(lambda topic: f"{in_node_id}.{topic}", [*topics, "notify"]))
 
         # Create and spawn data storing subprocess with reference to the `Stream` objects, to save `Consumer`s inputs.
         self._is_cleanup_event = Event()
@@ -113,7 +117,7 @@ class Consumer(ConsumerInterface, Node):
             target=launch_handler,
             args=(Storage,),
             kwargs={
-                "log_tag": self.topic,
+                "log_tag": self.node_id,
                 "spec": logging_spec,
                 "data_containers": {
                     node_name: data_container.get_info_all()
@@ -131,8 +135,8 @@ class Consumer(ConsumerInterface, Node):
         self._sub.connect("tcp://%s:%s" % (DNS_LOCALHOST, self._port_sub))
 
         # Subscribe to topics for each mentioned local and remote Nodes
-        for tag in self._data_containers.keys():
-            self._sub.subscribe(tag)
+        for subscription in self._subscriptions:
+            self._sub.subscribe(subscription)
 
     # Launch data receiving.
     def _activate_data_poller(self) -> None:
@@ -155,9 +159,9 @@ class Consumer(ConsumerInterface, Node):
         """
         topic, payload = self._sub.recv_multipart()
         receive_time = get_time()
-        msg = deserialize(payload)
+        msg: NewData = deserialize(payload)
         topic_tree: list[str] = topic.decode("utf-8").split(".")
-        self._data_containers[topic_tree[0]].push(process_time_s=receive_time, **msg)
+        self._data_containers[topic_tree[0]].push(process_time_s=receive_time, data=msg)
 
     def _poll_ending_data_packets(self) -> None:
         """Receive data packets from producers and monitor for end-of-stream signal.
@@ -181,7 +185,7 @@ class Consumer(ConsumerInterface, Node):
         else:
             msg = deserialize(payload)
             topic_tree: list[str] = topic.decode("utf-8").split(".")
-            self._data_containers[topic_tree[0]].push(process_time_s=receive_time, **msg)
+            self._data_containers[topic_tree[0]].push(process_time_s=receive_time, data=msg)
 
     def _trigger_stop(self):
         self._poll_data_fn = self._poll_ending_data_packets
@@ -193,14 +197,14 @@ class Consumer(ConsumerInterface, Node):
 
         # Before closing the PUB socket, wait for the 'BYE' signal from the Broker.
         self._sync.send_multipart(
-            [self.topic.encode("utf-8"), CMD_EXIT.encode("utf-8")]
+            [self.node_id.encode("utf-8"), CMD_EXIT.encode("utf-8")]
         )
         host, cmd = (
             self._sync.recv_multipart()
         )  # no need to read contents of the message.
         print(
             "%s received %s from %s."
-            % (self.topic, cmd.decode("utf-8"), host.decode("utf-8")),
+            % (self.node_id, cmd.decode("utf-8"), host.decode("utf-8")),
             flush=True,
         )
         self._sub.close()

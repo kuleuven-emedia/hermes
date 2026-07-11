@@ -42,6 +42,16 @@ class NodeInterface(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def node_id(self) -> str:
+        """Read-only property uniquely identifying the Node.
+
+        Returns:
+            str: Human-readable node id or name, uniquely and consistenly set by the user.
+        """
+        pass
+
     @abstractmethod
     def _set_state(self, state) -> None:
         """User-defined logic for FSM state transition.

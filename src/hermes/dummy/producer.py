@@ -43,7 +43,7 @@ class DummyProducer(Producer):
 
     def __init__(
         self,
-        topic: str,
+        node_id: str,
         host_ip: str,
         logging_spec: LoggingSpec,
         sampling_rate_hz: Optional[int] = 1,
@@ -58,7 +58,7 @@ class DummyProducer(Producer):
         """Constructor of the DummyProducer Node.
 
         Args:
-            topic (str): Topic to which the producer will publish messages.
+            topic (str): Node to which the producer will publish messages.
             host_ip (str): IP address of the local master Broker.
             logging_spec (LoggingSpec): Specification of what and how to store.
             sampling_rate_hz (int, optional): Expected sample rate of the device. Defaults to `1`.
@@ -88,7 +88,7 @@ class DummyProducer(Producer):
             [[random.randbytes(self._payload_num_bytes)]],
             dtype=f"V{self._payload_num_bytes}",
         )
-        self._tag: str = "%s.data" % topic
+        self._tag: str = "%s.data" % node_id
         self._next_period: float
 
         data_out_spec = {
@@ -98,7 +98,7 @@ class DummyProducer(Producer):
         }
 
         super().__init__(
-            topic=topic,
+            node_id=node_id,
             host_ip=host_ip,
             data_out_spec=data_out_spec,
             logging_spec=logging_spec,
@@ -132,9 +132,8 @@ class DummyProducer(Producer):
                     pass
 
             self._publish(
-                self._tag,
                 process_time_s=process_time_s,
-                data={
+                new_data={
                     "sensor_emulator1": {
                         "data": self._data,
                         "sequence": self._sequence,

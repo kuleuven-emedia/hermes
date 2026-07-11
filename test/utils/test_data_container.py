@@ -1,7 +1,7 @@
 import numpy as np
 
 from hermes.base.data_container import DataContainer
-from hermes.utils.types import VideoFormatEnum, DataBundleInfo, SharedMemoryCircularBufferMetadata
+from hermes.utils.types import VideoFormatEnum
 
 
 class MockVideoContainer(DataContainer):
@@ -13,10 +13,10 @@ class MockVideoContainer(DataContainer):
             channel_name="frame",
             data_type="uint8",
             sample_size=[1],
-            buf_len=100,  # 100 bytes buffer
-            index_len=5,   # 5 frames index
+            buf_len=5,  # 100 bytes buffer
+            mem_size=100,   # 5 frames index
             is_video=True,
-            color_format=VideoFormatEnum.MJPEG
+            video_format=VideoFormatEnum.MJPEG
         )
         # Adding metadata channels
         self.add_channel(

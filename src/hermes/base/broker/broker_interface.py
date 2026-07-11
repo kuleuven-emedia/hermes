@@ -118,22 +118,22 @@ class BrokerInterface(ABC):
         pass
 
     @abstractmethod
-    def _add_brokered_node(self, topic: str) -> None:
+    def _add_brokered_node(self, node_id: str) -> None:
         """Add a unique local Node identifier joining the exchange via the Broker.
 
-        Nodes uniquely self-identify by the data topic they produce.
+        Nodes uniquely self-identify by the data user-assigned id.
 
         Args:
-            topic (str): Unique identifier of the Node.
+            node_id (str): Unique identifier of the Node.
         """
         pass
 
     @abstractmethod
-    def _remove_brokered_node(self, topic: str) -> None:
+    def _remove_brokered_node(self, node_id: str) -> None:
         """Remove the existing local Node identifier from the exchange via the Broker.
 
         Args:
-            topic (str): Unique identifier of the Node.
+            node_id (str): Unique identifier of the Node.
         """
         pass
 
@@ -263,8 +263,8 @@ class BrokerInterface(ABC):
 
         Args:
             poll_res (ZMQResult): New ZeroMQ packets from PUB or SUB interfaces.
-            on_data_received (_type_, optional): Callback for data packets. Defaults to lambda_:None.
-            on_subscription_changed (_type_, optional): Callback for subscription status packets. Defaults to lambda_:None.
+            on_data_received (Callable[[list[bytes]], None], optional): Callback for data packets. Defaults to lambda_:None.
+            on_subscription_changed (Callable[[list[bytes]], None], optional): Callback for subscription status packets. Defaults to lambda_:None.
         """
         pass
 

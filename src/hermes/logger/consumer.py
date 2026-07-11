@@ -43,7 +43,7 @@ class DataLogger(Consumer):
 
     def __init__(
         self,
-        topic: str,
+        node_id: str,
         host_ip: str,
         data_in_specs: list[dict],
         logging_spec: LoggingSpec,
@@ -56,7 +56,7 @@ class DataLogger(Consumer):
         """Constructor of the centralized Storage Node.
 
         Args:
-            topic (str): Topic to which the consumer will subscribe.
+            node_id (str): Topic to which the consumer will subscribe.
             host_ip (str): IP address of the local master Broker.
             data_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
             logging_spec (LoggingSpec): Mapping of Storage object parameters to user-defined configuration values.
@@ -66,7 +66,7 @@ class DataLogger(Consumer):
             log_history_filepath (str, optional): File path to the system log file. Defaults to `None`.
         """
         super().__init__(
-            topic=topic,
+            node_id=node_id,
             host_ip=host_ip,
             data_in_specs=data_in_specs,
             logging_spec=logging_spec,

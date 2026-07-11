@@ -28,6 +28,8 @@
 import msgpack
 import numpy as np
 
+from hermes.utils.types import NewData
+
 
 def encode_ndarray(obj: object) -> object:
     """Encodes NumPy contents of the provided object into bytes.
@@ -84,28 +86,28 @@ def convert_bytes_keys_to_strings(obj: object) -> object:
         return obj
 
 
-def serialize(**kwargs) -> bytes:
-    """Serializes a Python dict-like object for ZeroMQ transmission.
+def serialize(new_data: NewData) -> bytes:
+    """Serializes dict-like new data for ZeroMQ transmission.
 
     Preserves named arguments as key-value pairs.
 
     Args:
-        kwargs (dict): Inputs to serialize using a custom encoding hook for NumPy arrays.
+        new_data (NewData): Inputs to serialize using a custom encoding hook for NumPy arrays.
 
     Returns:
         bytes: Serialized binary data safe to transmit.
     """
-    return msgpack.packb(o=kwargs, default=encode_ndarray)  # type: ignore
+    return msgpack.packb(o=new_data, default=encode_ndarray)  # type: ignore
 
 
-def deserialize(msg: bytes) -> dict:
-    """Deserializes the received message to construct the original Python object.
+def deserialize(msg: bytes) -> NewData:
+    """Deserializes the received message to construct the original NewData object.
 
     Args:
-        msg (bytes): Raw binary data containing the original Python object.
+        msg (bytes): Raw binary data containing the original NewData object.
 
     Returns:
-        dict: Python object with the key-value pairs preserved and any NumPy arrays reconstructed.
+        NewData: Nested dictionary with the key-value pairs preserved and any NumPy arrays reconstructed.
     """
     raw_dict = msgpack.unpackb(msg, object_hook=decode_ndarray)
     return convert_bytes_keys_to_strings(raw_dict)  # type: ignore

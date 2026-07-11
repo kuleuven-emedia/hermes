@@ -48,7 +48,7 @@ class DummyPipeline(Pipeline):
 
     def __init__(
         self,
-        topic: str,
+        node_id: str,
         host_ip: str,
         data_out_spec: dict,
         data_in_specs: list[dict],
@@ -63,7 +63,7 @@ class DummyPipeline(Pipeline):
         """Constructor of the DummyPipeline Node.
 
         Args:
-            topic (str): Topic to which the pipeline will publish messages.
+            node_id (str): Node to which the pipeline will publish messages.
             host_ip (str): IP address of the local master Broker.
             data_out_spec (dict): Mapping of corresponding Stream object parameters to user-defined configuration values.
             data_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
@@ -81,7 +81,7 @@ class DummyPipeline(Pipeline):
         self._next_period: float
 
         super().__init__(
-            topic=topic,
+            node_id=node_id,
             host_ip=host_ip,
             data_out_spec=data_out_spec,
             data_in_specs=data_in_specs,
@@ -103,18 +103,16 @@ class DummyPipeline(Pipeline):
 
     def _process_data(self, topic: str, msg: dict) -> None:
         process_time_s: float = get_time()
-        tag: str = "%s.data" % self.topic
-        data = msg["data"]["sensor_emulator1"]
+        data = msg["sensor_emulator1"]
         data["flag"] = np.array([[1]], dtype=np.uint8)
         self._publish(
-            tag, process_time_s=process_time_s, data={"sensor_emulator_processed": data}
+            process_time_s=process_time_s, new_data={"sensor_emulator_processed": data}
         )
 
     def _generate_data(self) -> None:
         if self._is_keep_samples and self._is_continue_generate:
             process_time_s = get_time()
             if self._next_period <= process_time_s:
-                tag: str = "%s.data" % self.topic
                 data = {
                     "data": np.array(
                         [[
@@ -131,9 +129,8 @@ class DummyPipeline(Pipeline):
                     "toa_s": np.array([process_time_s], dtype=np.float64),
                 }
                 self._publish(
-                    tag,
                     process_time_s=process_time_s,
-                    data={"sensor_emulator_internal": data},
+                    new_data={"sensor_emulator_internal": data},
                 )
                 self._sequence += 1
                 self._next_period += self._period

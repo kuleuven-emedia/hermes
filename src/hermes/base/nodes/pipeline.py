@@ -44,7 +44,7 @@ from hermes.utils.zmq_utils import (
     PORT_SYNC_HOST,
     PORT_KILL,
 )
-from hermes.utils.types import LoggingSpec
+from hermes.utils.types import LoggingSpec, NewData
 
 from hermes.base.data_container import DataContainer
 from hermes.base.storage.storage import Storage
@@ -58,7 +58,7 @@ class Pipeline(PipelineInterface, Node):
 
     def __init__(
         self,
-        topic: str,
+        node_id: str,
         host_ip: str,
         data_out_spec: dict,
         data_in_specs: list[dict],
@@ -72,7 +72,7 @@ class Pipeline(PipelineInterface, Node):
         """Constructor of the Pipeline parent class.
 
         Args:
-            topic (str): Uniquely identifying tag for the Node and its data.
+            node_id (str): Uniquely identifying tag for the Node and its data.
             host_ip (str): IP address of the local master Broker.
             data_out_spec (dict): Mapping of corresponding `DataContainer` object parameters to user-defined configuration values.
             data_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
@@ -84,7 +84,7 @@ class Pipeline(PipelineInterface, Node):
             port_killsig (str, optional): Local port to listen to for local master Broker's termination signal. Defaults to `PORT_KILL`.
         """
         super().__init__(
-            topic=topic,
+            node_id=node_id,
             host_ip=host_ip,
             port_sync=port_sync,
             port_killsig=port_killsig,
@@ -95,7 +95,8 @@ class Pipeline(PipelineInterface, Node):
         self._is_async_generate = is_async_generate
         self._is_more_data_in = True
         self._is_more_data_out = True
-        self._publish_fn = lambda tag, **kwargs: None
+        self._publish_fn = lambda process_time_s, new_data: None
+        self._active_subscriptions: set[str] = set()
 
         # Data structure for keeping track of the `Pipeline`s output data.
         self._data_container_out: DataContainer = self.create_data_container(data_out_spec)
@@ -107,19 +108,23 @@ class Pipeline(PipelineInterface, Node):
             self._on_poll_in_out if self._is_async_generate else self._on_poll_in_only
         )
         self._is_producer_ended: OrderedDict[str, bool] = OrderedDict()
+        self._subscriptions: list[str] = []
 
         for data_spec in data_in_specs:
-            topic_name: str = data_spec["topic"]
+            in_node_id: str = data_spec["node_id"]
             module_name: str = data_spec["package"]
             class_name: str = data_spec["class"]
             spec: dict = data_spec["settings"]
+            topics: list[str] = data_spec["topics"]
             # Create the data container.
             class_type: type[ProducerInterface] | type[PipelineInterface] = (
                 search_module_class(module_name, class_name)
             )  # type: ignore
             class_object: DataContainer = class_type.create_data_container(spec)
-            self._data_containers_in.setdefault(topic_name, class_object)
-            self._is_producer_ended.setdefault(topic_name, False)
+            self._data_containers_in.setdefault(in_node_id, class_object)
+            self._is_producer_ended.setdefault(in_node_id, False)
+            # Allow for specific subscriptions to sub-topics, defaulting to the main topic.
+            self._subscriptions.extend(map(lambda topic: f"{in_node_id}.{topic}", [*topics, "notify"]))
 
         # Create and spawn data storing subprocess with reference to the `DataContainer` objects, to save `Pipeline`s outputs and inputs.
         self._is_cleanup_event = Event()
@@ -127,12 +132,12 @@ class Pipeline(PipelineInterface, Node):
             target=launch_handler,
             args=(Storage,),
             kwargs={
-                "log_tag": self.topic,
+                "log_tag": self.node_id,
                 "spec": logging_spec,
                 "data_containers": {
                     node_name: data_container.get_info_all()
                     for node_name, data_container in {
-                        self.topic: self._data_container_out,
+                        self.node_id: self._data_container_out,
                         **self._data_containers_in,
                     }.items()
                 },
@@ -141,22 +146,24 @@ class Pipeline(PipelineInterface, Node):
         )
         self._storage_proc.start()
 
-    def _publish(self, tag: str, **kwargs) -> None:
+    def _publish(self, process_time_s: float, new_data: NewData) -> None:
         """Common method to save and publish the captured sample.
 
+        Pass generated data to the ZeroMQ message exchange layer.
         Best to deal with data structure (threading primitives) AFTER handing off packet to ZeroMQ.
         That way network thread can already start processing the packet.
 
         Args:
-            tag (str): Uniquely identifying key for the modality to label data for message exchange.
+            process_time_s (float): Time when the new data was processed by the foreground thread and relayed to the middleware.
+            new_data (NewData): Data to be published to the middleware and to be locally stored.
         """
-        self._publish_fn(tag, **kwargs)
+        self._publish_fn(process_time_s, new_data)
 
     def _initialize(self):
         super()._initialize()
 
         # Socket to publish processed data and log.
-        self._pub: zmq.SyncSocket = self._ctx.socket(zmq.PUB)
+        self._pub: zmq.SyncSocket = self._ctx.socket(zmq.XPUB)
         self._pub.connect("tcp://%s:%s" % (DNS_LOCALHOST, self._port_pub))
 
         # Socket to subscribe to other Producers.
@@ -164,13 +171,14 @@ class Pipeline(PipelineInterface, Node):
         self._sub.connect("tcp://%s:%s" % (DNS_LOCALHOST, self._port_sub))
 
         # Subscribe to topics for each mentioned local and remote streamer
-        for tag in self._data_containers_in.keys():
-            self._sub.subscribe(tag)
+        for subscription in self._subscriptions:
+            self._sub.subscribe(subscription)
 
     def _activate_data_poller(self) -> None:
         self._poller.register(self._sub, zmq.POLLIN)
+        self._poller.register(self._pub, zmq.POLLIN)
         if self._is_async_generate:
-            self._poller.register(self._pub, zmq.POLLOUT)
+            self._poller.register(self._pub, zmq.POLLIN | zmq.POLLOUT)
 
     def _on_poll_in_only(
         self, poll_res: tuple[list[zmq.SyncSocket], list[int]]
@@ -192,9 +200,26 @@ class Pipeline(PipelineInterface, Node):
         if self._sub in poll_res[0]:
             self._poll_data_fn()
         if self._pub in poll_res[0]:
-            self._generate_data()
+            idx = poll_res[0].index(self._pub)
+            if poll_res[1][idx] & zmq.POLLOUT:
+                self._generate_data()
+            if poll_res[1][idx] & zmq.POLLIN:
+                self._update_subscriptions()
 
-    def _on_poll(self, poll_res):
+    def _update_subscriptions(self) -> None:
+        msg = self._pub.recv_multipart()
+        msg_decoded = msg[0].decode("utf-8")
+        topic = msg_decoded[1:].split(".")[1]
+        if topic in self._data_container_out.get_bundle_names():
+            if "\x01" == msg_decoded[0]:
+                self._active_subscriptions.add(topic)
+            elif "\x00" == msg_decoded[0]:
+                self._active_subscriptions.discard(topic)
+
+    def _is_bundle_requested(self, bundle_name: str) -> bool:
+        return bundle_name in self._active_subscriptions
+
+    def _on_poll(self, poll_res: tuple[list[zmq.SyncSocket], list[int]]):
         # Receiving a modality packet, process until all data sources sent 'END' packet.
         self._on_poll_fn(poll_res)
         super()._on_poll(poll_res)
@@ -213,7 +238,7 @@ class Pipeline(PipelineInterface, Node):
         receive_time = get_time()
         msg = deserialize(payload)
         topic_tree: list[str] = topic.decode("utf-8").split(".")
-        self._data_containers_in[topic_tree[0]].push(process_time_s=receive_time, **msg)
+        self._data_containers_in[topic_tree[0]].push(process_time_s=receive_time, data=msg)
         self._process_data(topic=topic_tree[0], msg=msg)
 
     def _poll_ending_data_packets(self) -> None:
@@ -239,30 +264,22 @@ class Pipeline(PipelineInterface, Node):
         else:
             msg = deserialize(payload)
             topic_tree: list[str] = topic.decode("utf-8").split(".")
-            self._data_containers_in[topic_tree[0]].push(process_time_s=receive_time, **msg)
+            self._data_containers_in[topic_tree[0]].push(process_time_s=receive_time, data=msg)
             self._process_data(topic=topic_tree[0], msg=msg)
 
-    def _publish(self, tag: str, **kwargs) -> None:
-        """Pass generated data to the ZeroMQ message exchange layer.
+    def _store_and_broadcast(self, process_time_s: float, new_data: NewData) -> None:
+        """Place captured data into the corresponding DataContainer datastructure and transmit serialized ZeroMQ packets to subscribers.
 
         Args:
-            tag (str): Uniquely identifying key for the data generated by the Node.
-        """
-        self._publish_fn(tag, **kwargs)
-
-    def _store_and_broadcast(self, tag: str, process_time_s: float, **kwargs) -> None:
-        """Place captured data into the corresponding Stream datastructure and transmit serialized ZeroMQ packets to subscribers.
-
-        TODO: publish topics selectively.
-
-        Args:
-            tag (str): Uniquely identifying key for the modality to label data for message exchange.
             process_time_s (float): Time of consumption of the captured samples by the `HERMES` middleware.
-            **kwargs: Data in bundles to be serialized and sent, and stored locally.
+            new_data (NewData): Data in bundles to be serialized and sent, and stored locally.
         """
-        msg = serialize(**kwargs)
-        self._pub.send_multipart([tag.encode("utf-8"), msg])
-        self._data_container_out.push(process_time_s=process_time_s, **kwargs)
+        for bundle_name, bundle_data in new_data.items():
+            if self._is_bundle_requested(bundle_name):
+                comp_topic = f"{self.node_id}.{bundle_name}"
+                msg = serialize({bundle_name: bundle_data})
+                self._pub.send_multipart([comp_topic.encode("utf-8"), msg])
+        self._data_container_out.push(process_time_s=process_time_s, data=new_data)
 
     def _trigger_stop(self):
         self._poll_data_fn = self._poll_ending_data_packets
@@ -286,8 +303,8 @@ class Pipeline(PipelineInterface, Node):
         """Send 'END' empty packet and label Node as done to safely finish and exit the process and its threads."""
         self._pub.send_multipart(
             [
-                ("%s.data" % self.topic).encode("utf-8"),
-                CMD_END.encode("utf-8"),
+                ("%s.notify" % self.node_id).encode("utf-8"),
+                CMD_END.encode("utf-8")
             ]
         )
         self._is_done = True
@@ -299,14 +316,14 @@ class Pipeline(PipelineInterface, Node):
 
         # Before closing the PUB socket, wait for the 'BYE' signal from the Broker.
         self._sync.send_multipart(
-            [self.topic.encode("utf-8"), CMD_EXIT.encode("utf-8")]
+            [self.node_id.encode("utf-8"), CMD_EXIT.encode("utf-8")]
         )
         host, cmd = (
             self._sync.recv_multipart()
         )  # no need to read contents of the message.
         print(
             "%s received %s from %s."
-            % (self.topic, cmd.decode("utf-8"), host.decode("utf-8")),
+            % (self.node_id, cmd.decode("utf-8"), host.decode("utf-8")),
             flush=True,
         )
         self._pub.close()

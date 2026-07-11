@@ -38,7 +38,7 @@ class DummyConsumer(Consumer):
 
     def __init__(
         self,
-        topic: str,
+        node_id: str,
         host_ip: str,
         data_in_specs: list[dict],
         logging_spec: LoggingSpec,
@@ -50,7 +50,7 @@ class DummyConsumer(Consumer):
         """Constructor of the DummyConsumer Node.
 
         Args:
-            topic (str): Topic to which the consumer will subscribe.
+            node_id (str): Node which will subscribe to producers and pipelines.
             host_ip (str): IP address of the local master Broker.
             data_in_specs (list[dict]): List of mappings of user-configured incoming modalities.
             logging_spec (LoggingSpec): Specification of what and how to store.
@@ -59,7 +59,7 @@ class DummyConsumer(Consumer):
             port_killsig (str, optional): Local port to listen to for local master Broker's termination signal. Defaults to `PORT_KILL`.
         """
         super().__init__(
-            topic=topic,
+            node_id=node_id,
             host_ip=host_ip,
             data_in_specs=data_in_specs,
             logging_spec=logging_spec,

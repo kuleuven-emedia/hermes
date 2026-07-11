@@ -287,11 +287,11 @@ class Broker(BrokerInterface):
     def _get_brokered_nodes(self) -> set[str]:
         return self._brokered_nodes
 
-    def _add_brokered_node(self, topic: str) -> None:
-        self._brokered_nodes.add(topic)
+    def _add_brokered_node(self, node_id: str) -> None:
+        self._brokered_nodes.add(node_id)
 
-    def _remove_brokered_node(self, topic: str) -> None:
-        self._brokered_nodes.remove(topic)
+    def _remove_brokered_node(self, node_id: str) -> None:
+        self._brokered_nodes.remove(node_id)
 
     def _get_host_ip(self) -> str:
         return self._host_ip

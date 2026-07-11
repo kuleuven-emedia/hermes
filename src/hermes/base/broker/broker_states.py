@@ -249,7 +249,7 @@ class RunningState(AbstractBrokerState):
     def run(self) -> None:
         poll_res: ZMQResult = self._context._poll(1000)
         self._context._broker_packets(
-            poll_res, on_subscription_changed=self._on_subscription_added
+            poll_res, on_subscription_changed=self._on_subscription_changed
         )
         if self._context._check_for_kill(poll_res):
             self.kill()
@@ -257,17 +257,14 @@ class RunningState(AbstractBrokerState):
     def is_continue(self) -> bool:
         return self._is_continue_fn()
 
-    def _on_subscription_added(self, msg: list[bytes]) -> None:
+    def _on_subscription_changed(self, msg: list[bytes]) -> None:
         """Update a list on the Broker that keeps track of which Nodes are being brokered for."""
         msg_decoded = msg[0].decode("utf-8")
         if "\x01" in msg_decoded:
             topic: str = msg_decoded.split("\x01")[1]
-            print(f"{topic} subscribed", flush=True)
-            self._context._add_brokered_node(topic=topic)
+            self._context._add_brokered_node(node_id=topic.split(".")[0])
         elif "\x00" in msg_decoded:
             topic: str = msg_decoded.split("\x00")[1]
-            print(f"{topic} unsubscribed", flush=True)
-
 
 class KillState(AbstractBrokerState):
     """Received 1 of 3 possible KILL signals to terminate.

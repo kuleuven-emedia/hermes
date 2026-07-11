@@ -5,11 +5,11 @@ from hermes.datastructures.shared_memory import RawBytesSharedMemoryCircularBuff
 
 def test_circular_buffer():
     print("Initializing RawBytesSharedMemoryCircularBuffer...")
-    index_len = 5
-    buf_len = 20  # small buffer to force wrap-around easily
+    buf_len = 5
+    mem_size = 20  # small buffer to force wrap-around easily
     shm_buf = RawBytesSharedMemoryCircularBuffer(
-        index_len=index_len,
         buf_len=buf_len,
+        mem_size=mem_size,
         sample_size=[1],
         metadata=None
     )
