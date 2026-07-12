@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
+## [0.5.0](https://github.com/maximyudayev/hermes/releases/tag/0.5.0) - 2026-07-12
+
+<small>[Compare with 0.4.3](https://github.com/maximyudayev/hermes/compare/0.4.3...0.5.0)</small>
+
+### Features
+
+- Subscribe to subtopics of a Node ([2e86d0b](https://github.com/maximyudayev/hermes/commit/2e86d0bbb03a3851627733f22c76cc940d126a89) by Maxim Yudayev).
+- Execute pre-launch hooks ([ccf7739](https://github.com/maximyudayev/hermes/commit/ccf773931ad08a163004b56af093e85bf366773b) by Maxim Yudayev).
+
+### Bug Fixes
+
+- Quiet FFmpeg deadlocks on exit ([5ea5544](https://github.com/maximyudayev/hermes/commit/5ea554477d21fcd731e9a77920a5a53807e525cd) by Maxim Yudayev).
+
+### Performance Improvements
+
+- Minor delay in Node start time ([80bf0c9](https://github.com/maximyudayev/hermes/commit/80bf0c9ed367059bf2698ce779c25c7c316393fc) by Maxim Yudayev).
+
 ## [0.4.3](https://github.com/maximyudayev/hermes/releases/tag/0.4.3) - 2026-07-06
 
 <small>[Compare with 0.4.2](https://github.com/maximyudayev/hermes/compare/0.4.2...0.4.3)</small>
