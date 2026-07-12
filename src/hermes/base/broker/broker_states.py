@@ -36,6 +36,8 @@ from hermes.utils.zmq_utils import (
     CMD_END,
     CMD_GO,
     CMD_HELLO,
+    CMD_IS_START,
+    CMD_START,
     CMD_START_TIME,
     PORT_SYNC_REMOTE,
 )
@@ -64,6 +66,15 @@ class AbstractBrokerState(StateInterface):
     def kill(self) -> None:
         self._context._set_state(KillState(self._context))
 
+    def _on_subscription_changed(self, msg: list[bytes]) -> None:
+        """Update a list on the Broker that keeps track of which Nodes are being brokered for."""
+        msg_decoded = msg[0].decode("utf-8")
+        if "\x01" in msg_decoded:
+            topic: str = msg_decoded.split("\x01")[1]
+            self._context._add_brokered_node(node_id=topic.split(".")[0])
+        elif "\x00" in msg_decoded:
+            topic: str = msg_decoded.split("\x00")[1]
+
 
 class InitState(AbstractBrokerState):
     """Initialization state of the Broker to launch local Nodes.
@@ -86,18 +97,20 @@ class SyncNodeBarrierState(AbstractBrokerState):
     def run(self) -> None:
         host_ip: str = self._context._get_host_ip()
         sync_host_socket: zmq.SyncSocket = self._context._get_sync_host_socket()
-        num_left_to_sync: int = self._context._get_num_local_nodes()
         node_addresses = dict()
+        num_left_to_sync: int = self._context._get_num_local_nodes()
         while num_left_to_sync:
             address, _, node_name, cmd = sync_host_socket.recv_multipart()
-            num_left_to_sync -= 1
+            cmd = cmd.decode("utf-8")
             node_name = node_name.decode("utf-8")
-            node_addresses[node_name] = address
-            print(
-                "%s connected to %s with %s message."
-                % (node_name, host_ip, cmd.decode("utf-8")),
-                flush=True,
-            )
+            if cmd == CMD_HELLO:
+                num_left_to_sync -= 1
+                node_addresses[node_name] = address
+                print(
+                    "%s connected to %s with %s message."
+                    % (node_name, host_ip, cmd),
+                    flush=True,
+                )
         self._context._set_node_addresses(node_addresses)
         self._context._set_state(SyncBrokerBarrierState(self._context))
 
@@ -178,7 +191,31 @@ class SyncBrokerBarrierState(AbstractBrokerState):
         if not self._brokers_left_to_acknowledge and not self._brokers_left_to_checkin:
             self._poller.unregister(self._sync_remote_socket)
             self._context._set_remote_broker_addresses(self._brokers)
-            self._context._set_state(StartState(self._context))
+            self._context._set_state(SubscribeState(self._context))
+
+
+class SubscribeState(AbstractBrokerState):
+    """Subscription state of the Broker that relays subscription messages across Nodes and Brokers.
+    """
+
+    def run(self) -> None:
+        sync_host_socket: zmq.SyncSocket = self._context._get_sync_host_socket()
+
+        while poll_res := self._context._poll(5000):
+            self._context._broker_packets(
+                poll_res, on_subscription_changed=self._on_subscription_changed
+            )
+
+        host_ip: str = self._context._get_host_ip()
+        nodes: dict[str, bytes] = self._context._get_node_addresses()
+        # Trigger local Nodes to start logging. TODO: wait before continuing.
+        for name, address in list(nodes.items()):
+            sync_host_socket.send_multipart(
+                [address, b"", host_ip.encode("utf-8"), CMD_START.encode("utf-8")]
+            )
+            print("%s sending %s to %s" % (host_ip, CMD_START, name), flush=True)
+
+        self._context._set_state(StartState(self._context))
 
 
 class StartState(AbstractBrokerState):
@@ -219,6 +256,20 @@ class StartState(AbstractBrokerState):
         while (current_time_s := get_time()) < start_time_s:
             time.sleep(min(0.0001, start_time_s - current_time_s))
 
+        # Wait for the CMD_IS_START from all local Nodes.
+        num_left_to_sync: int = self._context._get_num_local_nodes()
+        while num_left_to_sync:
+            address, _, node_name, cmd = sync_host_socket.recv_multipart()
+            cmd = cmd.decode("utf-8")
+            node_name = node_name.decode("utf-8")
+            if cmd == CMD_IS_START:
+                num_left_to_sync -= 1
+                print(
+                    "%s responded to %s with %s message."
+                    % (node_name, host_ip, cmd),
+                    flush=True,
+                )
+
         # Trigger local Nodes to start logging.
         for name, address in list(nodes.items()):
             sync_host_socket.send_multipart(
@@ -257,14 +308,6 @@ class RunningState(AbstractBrokerState):
     def is_continue(self) -> bool:
         return self._is_continue_fn()
 
-    def _on_subscription_changed(self, msg: list[bytes]) -> None:
-        """Update a list on the Broker that keeps track of which Nodes are being brokered for."""
-        msg_decoded = msg[0].decode("utf-8")
-        if "\x01" in msg_decoded:
-            topic: str = msg_decoded.split("\x01")[1]
-            self._context._add_brokered_node(node_id=topic.split(".")[0])
-        elif "\x00" in msg_decoded:
-            topic: str = msg_decoded.split("\x00")[1]
 
 class KillState(AbstractBrokerState):
     """Received 1 of 3 possible KILL signals to terminate.

@@ -26,6 +26,7 @@
 # ############
 
 from abc import ABC, abstractmethod
+from typing import Optional
 import zmq
 
 
@@ -85,6 +86,11 @@ class NodeInterface(ABC):
         pass
 
     @abstractmethod
+    def _activate_subscription_poller(self) -> None:
+        """Start listening for subscription messages from other Nodes."""
+        pass
+
+    @abstractmethod
     def _activate_data_poller(self) -> None:
         """Start listening for new data from other Nodes."""
         pass
@@ -100,11 +106,14 @@ class NodeInterface(ABC):
         pass
 
     @abstractmethod
-    def _poll(self) -> tuple[list[zmq.SyncSocket], list[int]]:
+    def _poll(self, timeout_ms: Optional[int] = None) -> tuple[list[zmq.SyncSocket], list[int]]:
         """Block for new ZeroMQ data to collect at the Poller.
 
         Listens for events when new data is received from or when new data can be written to sockets,
         based on the active Poller settings of the Node implementation.
+
+        Args:
+            timeout_ms (int, optional): Polling timeout duration to exchange subscription messages on startup. Defaults to `None`.
 
         Returns:
             tuple[list[zmq.SyncSocket], list[int]]: Result of listening on the sockets registered by the Poller.

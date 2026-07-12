@@ -138,6 +138,9 @@ class Consumer(ConsumerInterface, Node):
         for subscription in self._subscriptions:
             self._sub.subscribe(subscription)
 
+    def _activate_subscription_poller(self) -> None:
+        pass
+
     # Launch data receiving.
     def _activate_data_poller(self) -> None:
         self._poller.register(self._sub, zmq.POLLIN)

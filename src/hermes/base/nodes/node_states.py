@@ -27,7 +27,7 @@
 
 import zmq
 
-from hermes.utils.zmq_utils import CMD_HELLO
+from hermes.utils.zmq_utils import CMD_HELLO, CMD_IS_START
 
 from hermes.base.nodes.node_interface import NodeInterface
 from hermes.base.state_interface import StateInterface
@@ -62,8 +62,31 @@ class StartState(AbstractNodeState):
 
     def run(self):
         self._context._initialize()
-        self._context._activate_data_poller()
-        self._context._set_state(SyncState(self._context))
+        self._context._activate_subscription_poller()
+        self._context._set_state(SubscribeState(self._context))
+
+
+class SubscribeState(AbstractNodeState):
+    def __init__(self, context: NodeInterface):
+        super().__init__(context)
+        self._sync = context._get_sync_socket()
+        self._sync_poller = zmq.Poller()
+        self._sync_poller.register(self._sync, zmq.POLLIN)
+        self._sync.send_multipart(
+            [self._context.node_id.encode("utf-8"), CMD_HELLO.encode("utf-8")]
+        )
+
+    def run(self):
+        poll_res = self._context._poll(500)
+        if poll_res:
+            self._context._on_poll(poll_res)
+
+        sync_res = self._sync_poller.poll(500)
+        if sync_res:
+            host, cmd = self._sync.recv_multipart()
+            print("%s received %s from %s" % (self._context.node_id, cmd, host), flush=True)
+            self._sync_poller.unregister(self._sync)
+            self._context._set_state(SyncState(self._context))
 
 
 class SyncState(AbstractNodeState):
@@ -75,7 +98,7 @@ class SyncState(AbstractNodeState):
 
     def run(self):
         self._sync.send_multipart(
-            [self._context.node_id.encode("utf-8"), CMD_HELLO.encode("utf-8")]
+            [self._context.node_id.encode("utf-8"), CMD_IS_START.encode("utf-8")]
         )
         host, cmd = self._sync.recv_multipart()
         print(
@@ -95,6 +118,7 @@ class RunningState(AbstractNodeState):
 
     def __init__(self, context: NodeInterface):
         super().__init__(context)
+        self._context._activate_data_poller()
         self._context._activate_kill_poller()
         self._context._on_sync_complete()
 

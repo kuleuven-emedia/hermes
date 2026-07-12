@@ -154,8 +154,11 @@ class Producer(ProducerInterface, Node):
         while not self._connect():
             print(f"Reconnecting {self.node_id}", flush=True)
 
+    def _activate_subscription_poller(self) -> None:
+        self._poller.register(self._pub, zmq.POLLIN)
+
     def _activate_data_poller(self) -> None:
-        self._poller.register(self._pub, zmq.POLLIN | zmq.POLLOUT)
+        self._poller.register(self._pub, zmq.POLLOUT)
 
     def _update_subscriptions(self) -> None:
         msg = self._pub.recv_multipart()

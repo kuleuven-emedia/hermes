@@ -174,11 +174,13 @@ class Pipeline(PipelineInterface, Node):
         for subscription in self._subscriptions:
             self._sub.subscribe(subscription)
 
+    def _activate_subscription_poller(self) -> None:
+        self._poller.register(self._pub, zmq.POLLIN)
+
     def _activate_data_poller(self) -> None:
         self._poller.register(self._sub, zmq.POLLIN)
-        self._poller.register(self._pub, zmq.POLLIN)
         if self._is_async_generate:
-            self._poller.register(self._pub, zmq.POLLIN | zmq.POLLOUT)
+            self._poller.register(self._pub, zmq.POLLOUT)
 
     def _on_poll_in_only(
         self, poll_res: tuple[list[zmq.SyncSocket], list[int]]

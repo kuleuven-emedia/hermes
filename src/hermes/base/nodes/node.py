@@ -123,16 +123,19 @@ class Node(NodeInterface):
     def _activate_data_poller(self) -> None:
         pass
 
+    @abstractmethod
+    def _activate_subscription_poller(self) -> None:
+        pass
+
     def _deactivate_kill_poller(self) -> None:
         print("%s received KILL signal" % self.node_id, flush=True)
-        # self._killsig.recv_multipart()
         self._poller.unregister(self._killsig)
 
     def _send_kill_to_broker(self):
         self._babykillsig.send_string(TOPIC_KILL)
 
-    def _poll(self) -> tuple[list[zmq.SyncSocket], list[int]]:
-        return tuple(zip(*(self._poller.poll())))
+    def _poll(self, timeout_ms: Optional[int] = None) -> tuple[list[zmq.SyncSocket], list[int]]:
+        return tuple(zip(*(self._poller.poll(timeout_ms))))
 
     @abstractmethod
     def _on_poll(self, poll_res: tuple[list[zmq.SyncSocket], list[int]]) -> None:

@@ -124,30 +124,24 @@ class DummyProducer(Producer):
     def _process_data(self) -> None:
         if self._is_continue_capture:
             process_time_s = get_time()
-            time_to_wait = self._next_period - process_time_s
-
-            if time_to_wait > 0:
-                time.sleep(time_to_wait * 0.9)
-                while (process_time_s := get_time()) < self._next_period:
-                    pass
-
-            self._publish(
-                process_time_s=process_time_s,
-                new_data={
-                    "sensor_emulator1": {
-                        "data": self._data,
-                        "sequence": self._sequence,
-                        "toa_s": np.array([[process_time_s]], dtype=np.float64),
+            if self._next_period <= process_time_s:
+                self._publish(
+                    process_time_s=process_time_s,
+                    new_data={
+                        "sensor_emulator1": {
+                            "data": self._data,
+                            "sequence": self._sequence,
+                            "toa_s": np.array([[process_time_s]], dtype=np.float64),
+                        },
+                        "sensor_emulator2": {
+                            "data": self._data,
+                            "sequence": self._sequence,
+                            "toa_s": np.array([[process_time_s]], dtype=np.float64),
+                        },
                     },
-                    "sensor_emulator2": {
-                        "data": self._data,
-                        "sequence": self._sequence,
-                        "toa_s": np.array([[process_time_s]], dtype=np.float64),
-                    },
-                },
-            )
-            self._sequence += 1
-            self._next_period += self._period
+                )
+                self._sequence += 1
+                self._next_period += self._period
         else:
             self._send_end_packet()
 
